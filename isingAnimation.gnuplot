@@ -1,6 +1,7 @@
 set cbrange[-1:1]
-plot 'output.dat'
+plot 'output.txt' w image
 while (1) {
-      replot
-      pause 0.3
+    pause 0.5
+    replot
+
 }

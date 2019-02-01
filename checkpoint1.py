@@ -4,25 +4,17 @@
 import numpy as np
 import random as rnd
 import math
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from os import system
+import sys
 
 rnd.seed(0) # seed random number generator with interger, ensuring repeated performance throughout runs
 
 # function to get systems parameters from command line
 def getInputParams():
-    dimensions = int(input("Enter the side length of the Square Lattice: "))
-    temp = float(input("Enter the system temperature: "))
+    dimensions = int(sys.argv[1]);
+    temp = int(sys.argv[2]);
+    dynamics = sys.argv[3];
 
-    validDynamics = False
-    while validDynamics == False:
-        dynamics = input("Enter the system dynamics (Glauber/Kawasaki): ")
-        if (dynamics.lower() != "glauber" and dynamics.lower() != "kawasaki"):
-            print("Invalid input")
-            print(dynamics)
-        else:
-            validDynamics = True
     return dimensions, temp, dynamics
 
 def randomSpins(dimensions):
@@ -60,7 +52,7 @@ def getNearestNeighbours(xPos, yPos, dimensions, lattice):
 
 def glauberEnergyChange(xPos, yPos, dimensions, lattice):
     nearestNeighbours = getNearestNeighbours(xPos, yPos, dimensions, lattice)
-    energyChange = -2 * lattice[xPos, yPos] * np.sum(nearestNeighbours)
+    energyChange = 2 * lattice[xPos, yPos] * np.sum(nearestNeighbours)
     return energyChange
 
 def metropolisFlip(energyChange, temp):
@@ -70,6 +62,15 @@ def metropolisFlip(energyChange, temp):
         return True
     else:
         return False
+
+def formatOutputMatrix(lattice):
+    # format output file as x, y, spin(x, y) to avoid gnu plot loading error
+    file = open("output.txt", "w")
+    for i in range(lattice.shape[1]-1):
+        for j in range(lattice.shape[1]-1):
+
+            file.write(str(i) + " "  + str(j) + " " + str(lattice[i, j]) + "\n")
+    file.close()
 
 
 def main():
@@ -91,16 +92,17 @@ def main():
             return 0 # do nothing for the time being
 
 
-    counter = 0
-    while counter < 10000:
+    sweeps = 0
+    while sweeps < 10000:
+        counter = 0
+        while counter < (dimensions**2):
+            lattice = updateState(dimensions, lattice)
+            counter += 1
+        sweeps += 1
+        formatOutputMatrix(lattice)
 
-        lattice = updateState(dimensions, lattice)
-        np.savetxt("output.dat", lattice)
-
-        counter += 1
-        print(counter)
+        #np.savetxt("output.txt", lattice)
 
         # some measurement and animation code here
 
-system('gnuplot isingAnimation.gnuplot &')
 main()
