@@ -70,13 +70,22 @@ def kawasakiEnergyChange(pos1, pos2, dimensions, lattice):
 
     if (spin1 == spin2):
         return 0
+
     elif (pos2 in NN1):
-        # define kawasaki behaviour if chosen spins are nearest nearest neighbours
-        return 0 # dummy return until correct behaviour is determined
+        # return energy change for each spin swap, not including the interaction with the other swapped spin
+        NNSpin1 = [lattice[NN[0], NN[1]] for NN in NN1]
+        NNSpin2 = [lattice[NN[0], NN[1]] for NN in NN2]
+
+        energyChange1 = 2 * lattice[pos1[0], pos1[1]] * (sum(NNSpin1 - lattice[pos2[0], pos2[1]]))
+        energyChange2 = 2 * lattice[pos2[0], pos2[1]] * (sum(NNSpin2 - lattice[pos1[0], pos2[1]]))
+
+        return energyChange1 + energyChange2
+
     else:
         # chosen spins are not nearest neighbours
         NNSpin1 = [lattice[NN[0], NN[1]] for NN in NN1]
         NNSpin2 = [lattice[NN[0], NN[1]] for NN in NN2]
+        
         energyChange1 = 2 * lattice[pos1[0], pos1[1]] * sum(NNSpin1)
         energyChange2 = 2 * lattice[pos2[0], pos2[1]] * sum(NNSpin2)
 
@@ -158,6 +167,6 @@ def main():
 
         #np.savetxt("output.txt", lattice)
 
-        
+
 
 main()
