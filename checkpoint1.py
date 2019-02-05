@@ -28,32 +28,83 @@ def randomSpins(dimensions):
 
     return lattice
 
-def getNearestNeighbours(xPos, yPos, dimensions, lattice):
-    nearestNeighbours = np.zeros(4) # array to contain spins of nearest neighbours to position given as argument
-    # chain of if statements to enforce periodic boundary conditions - find a more elegant way to do this
-    if (yPos == dimensions - 1):
-        nearestNeighbours[0] = lattice[xPos, 0]
+
+def getNearestNeighbours(pos, dimensions, lattice):
+    # function to determine nearest neighbours of given pos,
+    # and enforce periodic boundary conditions
+    nearestNeighbours = [] # list to contain tuples of nearest neighbours coordinates
+    if (pos[1] == dimensions -1):
+        nearestNeighbours.append((pos[0], 0))
     else:
-        nearestNeighbours[0] = lattice[xPos, yPos + 1]
-    if (yPos == 0):
-        nearestNeighbours[1] = lattice[xPos, dimensions - 1]
+        nearestNeighbours.append((pos[0], pos[1] +1))
+    if (pos[1] == 0):
+        nearestNeighbours.append((pos[0], dimensions -1))
     else:
-        nearestNeighbours[1] = lattice[xPos, yPos - 1]
-    if (xPos == dimensions - 1):
-        nearestNeighbours[2] = lattice[0, yPos]
+        nearestNeighbours.append((pos[0], pos[1] -1))
+    if (pos[0] == dimensions -1):
+        nearestNeighbours.append((0, pos[1]))
     else:
-        nearestNeighbours[2] = lattice[xPos + 1, yPos]
-    if (xPos == 0):
-        nearestNeighbours[3] = lattice[dimensions - 1, yPos]
+        nearestNeighbours.append((pos[0] +1, pos[1]))
+    if (pos[0] == 0):
+        nearestNeighbours.append((dimensions -1, pos[1]))
     else:
-        nearestNeighbours[3] = lattice[xPos - 1, yPos]
+        nearestNeighbours.append((pos[0] -1, pos[1]))
 
     return nearestNeighbours
 
-def glauberEnergyChange(xPos, yPos, dimensions, lattice):
-    nearestNeighbours = getNearestNeighbours(xPos, yPos, dimensions, lattice)
-    energyChange = 2 * lattice[xPos, yPos] * np.sum(nearestNeighbours)
+def glauberEnergyChange(pos, dimensions, lattice):
+    nearestNeighbours = getNearestNeighbours(pos, dimensions, lattice)
+
+    # determine spins of nearest neighbours by list comprehension
+    NNSpin = [lattice[NN[0], NN[1]] for NN in nearestNeighbours]
+
+    energyChange = 2 * lattice[pos[0], pos[1]] * sum(NNSpin)
     return energyChange
+
+def kawasakiEnergyChange(pos1, pos2, dimensions, lattice):
+    spin1 = lattice[pos1[0], pos1[1]]
+    spin2 = lattice[pos2[0], pos2[1]]
+
+    NN1 = getNearestNeighbours(pos1, dimensions, lattice)
+    NN2 = getNearestNeighbours(pos2, dimensions, lattice)
+
+    if (spin1 == spin2):
+        return 0
+    elif (pos2 in NN1):
+        # define kawasaki behaviour if chosen spins are nearest nearest neighbours
+        return 0 # dummy return until correct behaviour is determined
+    else:
+        # chosen spins are not nearest neighbours
+        NNSpin1 = [lattice[NN[0], NN[1]] for NN in NN1]
+        NNSpin2 = [lattice[NN[0], NN[1]] for NN in NN2]
+        energyChange1 = 2 * lattice[pos1[0], pos1[1]] * sum(NNSpin1)
+        energyChange2 = 2 * lattice[pos2[0], pos2[1]] * sum(NNSpin2)
+
+        return energyChange1 + energyChange2
+
+def updateStateGlauber(dimensions, temp, lattice):
+    pos = (rnd.randint(0, dimensions - 1), rnd.randint(0, dimensions -1))
+
+    energyChange = glauberEnergyChange(pos, dimensions, lattice)
+    if (metropolisFlip(energyChange, temp)):
+        lattice[pos[0], pos[1]] = - lattice[pos[0], pos[1]]
+
+    return lattice
+
+def updateSateKawasaki(dimensions, temp, lattice):
+    pos1 = (rnd.randint(0, dimensions -1), rnd.randint(0, dimensions -1))
+    pos2 = (rnd.randint(0, dimensions -1), rnd.randint(0, dimensions -1))
+
+    energyChange = kawasakiEnergyChange(pos1, pos2, dimensions, lattice)
+    if (metropolisFlip(energyChange, temp)):
+        old1 = lattice[pos1[0], pos1[1]]
+        lattice[pos1[0], pos1[1]] = lattice[pos2[0], pos2[1]]
+        lattice[pos2[0], pos2[1]] = old1
+
+    return lattice
+
+def updateState(dimensions, temp, lattice, dynamicsFunc):
+    return dynamicsFunc(dimensions, temp, lattice)
 
 def metropolisFlip(energyChange, temp):
     if (energyChange < 0):
@@ -63,8 +114,9 @@ def metropolisFlip(energyChange, temp):
     else:
         return False
 
+
 def formatOutputMatrix(lattice):
-    # format output file as x, y, spin(x, y) to avoid gnu plot loading error
+    # format output file as x y spin(x, y)
     file = open("output.txt", "w")
     for i in range(lattice.shape[1]-1):
         for j in range(lattice.shape[1]-1):
@@ -78,31 +130,34 @@ def main():
     lattice = randomSpins(dimensions) # initialise array to store spin values
 
     if (dynamics.lower() == "glauber"):
-        def updateState(dimensions, lattice):
-            xPos = rnd.randint(0, dimensions - 1)
-            yPos = rnd.randint(0, dimensions - 1)
-
-            energyChange = glauberEnergyChange(xPos, yPos, dimensions, lattice)
-            if (metropolisFlip(energyChange, temp)):
-                lattice[xPos, yPos] = - lattice[xPos, yPos]
-
-            return lattice
+        dynamicsFunc = updateStateGlauber
     else:
-        def updateState(dimensions, lattice):
-            return 0 # do nothing for the time being
+        # define updateState function for Kawasaki dynamics
+        dynamicsFunc = updateSateKawasaki
 
+    for temp in range(1, 201, 10):
+        sweeps = 0
+        magData = []
+        while sweeps < 10000:
+            counter = 0
+            while counter < (dimensions**2):
+                lattice = updateState(dimensions, temp, lattice, dynamicsFunc)
+                counter += 1
+            sweeps += 1
 
-    sweeps = 0
-    while sweeps < 10000:
-        counter = 0
-        while counter < (dimensions**2):
-            lattice = updateState(dimensions, lattice)
-            counter += 1
-        sweeps += 1
-        formatOutputMatrix(lattice)
+            if (sweeps%10 == 0):
+                formatOutputMatrix(lattice)
+
+            print ("sweep: %5d" % (sweeps))
+
+            if (sweeps > 100 and sweeps%10 == 0):
+                magData.append(np.sum(lattice))
+
+        # at end of temperature run, calculate suscebtibility of the system, and write to file along with temperature
+        # also implement measurement of total energy of the system
 
         #np.savetxt("output.txt", lattice)
 
-        # some measurement and animation code here
+        
 
 main()
