@@ -1,6 +1,6 @@
-set title "Mean Magnetisation vs Temperature"
+set title "Mean Energy vs Temperature"
 set xrange [*:*]
 set yrange [*:*]
 set xlabel "Temperature"
-set ylabel "Absolute Value of the Mean Magnetisation"
+set ylabel "Mean System Energy"
 plot 'Data/magnetisation.txt' with linespoints

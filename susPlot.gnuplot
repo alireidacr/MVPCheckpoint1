@@ -3,4 +3,4 @@ set xrange [*:*]
 set yrange [*:*]
 set xlabel "Temperature"
 set ylabel "Susceptibility"
-plot 'susceptibility.txt' with linespoints
+plot 'Data/susceptibility.txt' with linespoints

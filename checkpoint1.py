@@ -12,7 +12,7 @@ rnd.seed(0) # seed random number generator with interger, ensuring repeated perf
 # function to get systems parameters from command line
 def getInputParams():
     dimensions = int(sys.argv[1]);
-    temp = int(sys.argv[2]);
+    temp = float(sys.argv[2]);
     dynamics = sys.argv[3];
 
     return dimensions, temp, dynamics
@@ -134,7 +134,16 @@ def metropolisFlip(energyChange, temp):
         return False
 
 def systemEnergy(lattice):
-    return 0
+    # calculates the total energy of the system in it's current state
+    energy = 0
+    for i in range(lattice.shape[1]):
+        for j in range(lattice.shape[1]):
+            NNs = getNearestNeighbours((i, j), lattice)
+            energy -= sum([lattice[(i, j)] * lattice[NN] for NN in NNs])
+
+    return energy/2 # must divide by two to take into account double counting of pairs
+
+
 
 def main():
     dimensions, temp, dynamics = getInputParams()
@@ -151,7 +160,7 @@ def main():
         # define updateState function for Kawasaki dynamics
         dynamicsFunc = updateSateKawasaki
 
-    for temp in np.linspace(0.5, 10, 20):
+    for temp in np.linspace(0.5, 50, 20): # remove this line to allow editing of temp and dynamics at command line
         sweeps = 0
         magData = []
         EData = []
@@ -160,20 +169,19 @@ def main():
             while counter < (dimensions**2):
                 lattice = updateState(temp, lattice, dynamicsFunc)
                 counter += 1
-
+            """
             if (sweeps%10 == 0):
                 output.formatOutputMatrix(lattice)
                 print ("sweep: %5d" % (sweeps))
-
+            """
             if (sweeps > 100 and sweeps%10 == 0):
                 magData.append(np.sum(lattice))
                 EData.append(systemEnergy(lattice))
 
-
             sweeps += 1
 
-        output.recordMagData(temp, magData)
-        output.recordEnergyData(temp, EData)
+        output.recordMagData(temp, magData, dynamics)
+        output.recordEnergyData(temp, EData, dynamics)
 
         # at end of temperature run, calculate suscebtibility of the system, and write to file along with temperature
         # also implement measurement of total energy of the system
